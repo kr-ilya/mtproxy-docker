@@ -1,0 +1,22 @@
+services:
+  mtproxy:
+    build:
+      context: .
+      args:
+        MTPROTO_REPO_URL: ${MTPROTO_REPO_URL:-https://github.com/TelegramMessenger/MTProxy}
+        MTPROTO_COMMIT: ${MTPROTO_COMMIT:-cafc338}
+    image: mtproxy:latest
+    container_name: mtproxy
+    restart: unless-stopped
+    ports:
+      - "${PORT:-443}:${PORT:-443}"
+      - "127.0.0.1:${STATS_PORT:-8888}:${STATS_PORT:-8888}"
+    cap_add:
+      - NET_BIND_SERVICE
+    env_file:
+      - .env
+    volumes:
+      - mtproxy-data:/data
+
+volumes:
+  mtproxy-data:
