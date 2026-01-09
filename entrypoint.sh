@@ -117,11 +117,9 @@ print_connection_links() {
 
 start_stats_proxy() {
     # MTProxy listens on localhost only, socat exposes it to all interfaces
-    if [[ "${STATS_EXPOSE:-true}" == "true" ]]; then
-        socat TCP-LISTEN:${STATS_PORT_PUBLIC},bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:${STATS_PORT_INTERNAL} &
-        SOCAT_PID=$! 
-        log "Stats proxy started:  0.0.0.0:${STATS_PORT_PUBLIC} -> 127.0.0.1:${STATS_PORT_INTERNAL} (PID $SOCAT_PID)"
-    fi
+    socat TCP-LISTEN:${STATS_PORT_PUBLIC},bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:${STATS_PORT_INTERNAL} &
+    SOCAT_PID=$! 
+    log "Stats proxy started:  0.0.0.0:${STATS_PORT_PUBLIC} -> 127.0.0.1:${STATS_PORT_INTERNAL} (PID $SOCAT_PID)"
 }
 
 start_mtproxy() {
