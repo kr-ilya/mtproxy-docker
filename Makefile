@@ -1,4 +1,4 @@
-all: build run
+all: build run logs
 
 build:
 	docker compose build --no-cache

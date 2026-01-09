@@ -39,7 +39,7 @@ cleanup() {
 trap cleanup TERM INT
 
 # Secret setup
-if [[ -z "${SECRET}" ]]; then
+if [[ -z "${SECRET:-}" ]]; then
     if [[ -f "$SECRET_FILE" ]]; then
         SECRET=$(<"$SECRET_FILE")
     else
@@ -63,28 +63,39 @@ EXTERNAL_IP=${EXTERNAL_IP:-$INTERNAL_IP}
 WORKERS=${WORKERS:-$(nproc)}
 (( WORKERS > 16 )) && WORKERS=16
 
+# Ports setup:  PORTS takes priority, fallback to PORT, default to 443
+PORTS="${PORTS:-${PORT:-443}}"
+
 # Display connection info
 print_connection_link() {
     echo ""
     echo "═══════════════════════════════════════════"
     echo "  MTProxy connection info:"
-    echo "  Port:     ${PORT:-443}"
+    echo "  Ports:    $PORTS"
     echo "  Workers:  $WORKERS"
     echo "  Secret:   $SECRET"
-    [[ -n "$TAG" ]] && echo "  Tag:      $TAG"
+    [[ -n "${TAG:-}" ]] && echo "  Tag:      $TAG"
     echo ""
-    echo "  Connection link:"
-    echo "  tg://proxy?server=${EXTERNAL_IP}&port=${PORT:-443}&secret=dd${SECRET}"
+    echo "  Connection links:"
+    for port in ${PORTS//,/ }; do
+        echo "  tg://proxy?server=${EXTERNAL_IP}&port=${port}&secret=dd${SECRET}"
+    done
     echo "═══════════════════════════════════════════"
     echo ""
 }
 
 start_mtproxy() {
-    ARGS="-u root -p ${STATS_PORT:-8888} -H ${PORT:-443}"
+    ARGS="-u root -p ${STATS_PORT:-8888}"
+    
+    # Add all ports with -H flag
+    for port in ${PORTS//,/ }; do
+        ARGS="$ARGS -H $port"
+    done
+    
     ARGS="$ARGS --aes-pwd $PROXY_SECRET $PROXY_CONFIG"
     ARGS="$ARGS --nat-info ${INTERNAL_IP}:${EXTERNAL_IP}"
     ARGS="$ARGS -M $WORKERS -S $SECRET --http-stats"
-    [ -n "$TAG" ] && ARGS="$ARGS -P $TAG"
+    [[ -n "${TAG:-}" ]] && ARGS="$ARGS -P $TAG"
 
     /usr/local/bin/mtproto-proxy $ARGS &
     MTPROXY_PID=$!
@@ -92,7 +103,7 @@ start_mtproxy() {
 }
 
 log "Starting MTProxy"
-log "Ports: ${PORTS:-$PORT}"
+log "Ports: $PORTS"
 log "Workers: $WORKERS"
 
 print_connection_link
