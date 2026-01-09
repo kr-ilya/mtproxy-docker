@@ -38,22 +38,36 @@ cleanup() {
 
 trap cleanup TERM INT
 
-# Secret setup
-if [[ -z "${SECRET:-}" ]]; then
-    if [[ -f "$SECRET_FILE" ]]; then
-        SECRET=$(<"$SECRET_FILE")
-    else
-        SECRET=$(generate_secret)
-        echo "$SECRET" > "$SECRET_FILE"
-        chmod 600 "$SECRET_FILE"
-        log "Generated new secret"
-    fi
+# Secrets setup:  SECRETS takes priority, fallback to SECRET
+if [[ -n "${SECRETS:-}" ]]; then
+    # Multiple secrets provided
+    SECRETS_LIST="${SECRETS//,/ }"
+elif [[ -n "${SECRET:-}" ]]; then
+    # Single secret provided
+    SECRETS_LIST="$SECRET"
+elif [[ -f "$SECRET_FILE" ]]; then
+    # Read from file (one secret per line or comma-separated)
+    SECRETS_LIST=$(tr ',\n' ' ' < "$SECRET_FILE" | xargs)
+else
+    # Generate new secret
+    NEW_SECRET=$(generate_secret)
+    echo "$NEW_SECRET" > "$SECRET_FILE"
+    chmod 600 "$SECRET_FILE"
+    SECRETS_LIST="$NEW_SECRET"
+    log "Generated new secret"
 fi
 
-validate_secret "$SECRET" || {
-    log "Invalid SECRET format"
-    exit 1
-}
+# Validate all secrets
+for secret in $SECRETS_LIST; do
+    validate_secret "$secret" || {
+        log "Invalid secret format:  $secret"
+        exit 1
+    }
+done
+
+# Count secrets
+SECRET_COUNT=$(echo $SECRETS_LIST | wc -w)
+log "Loaded $SECRET_COUNT secret(s)"
 
 # Networking setup
 INTERNAL_IP=$(hostname -i | awk '{print $1}')
@@ -65,20 +79,27 @@ WORKERS=${WORKERS:-$(nproc)}
 
 # Ports setup:  PORTS takes priority, fallback to PORT, default to 443
 PORTS="${PORTS:-${PORT:-443}}"
+PORTS_LIST="${PORTS//,/ }"
 
 # Display connection info
-print_connection_link() {
+print_connection_links() {
     echo ""
     echo "═══════════════════════════════════════════"
     echo "  MTProxy connection info:"
     echo "  Ports:    $PORTS"
     echo "  Workers:  $WORKERS"
-    echo "  Secret:   $SECRET"
+    echo "  Secrets:  $SECRET_COUNT"
     [[ -n "${TAG:-}" ]] && echo "  Tag:      $TAG"
     echo ""
     echo "  Connection links:"
-    for port in ${PORTS//,/ }; do
-        echo "  tg://proxy?server=${EXTERNAL_IP}&port=${port}&secret=dd${SECRET}"
+    
+    local secret_num=1
+    for secret in $SECRETS_LIST; do
+        for port in $PORTS_LIST; do
+            echo "  [Secret $secret_num, Port $port]:"
+            echo "  tg://proxy?server=${EXTERNAL_IP}&port=${port}&secret=dd${secret}"
+        done
+        ((secret_num++))
     done
     echo "═══════════════════════════════════════════"
     echo ""
@@ -88,13 +109,18 @@ start_mtproxy() {
     ARGS="-u root -p ${STATS_PORT:-8888}"
     
     # Add all ports with -H flag
-    for port in ${PORTS//,/ }; do
+    for port in $PORTS_LIST; do
         ARGS="$ARGS -H $port"
+    done
+    
+    # Add all secrets with -S flag
+    for secret in $SECRETS_LIST; do
+        ARGS="$ARGS -S $secret"
     done
     
     ARGS="$ARGS --aes-pwd $PROXY_SECRET $PROXY_CONFIG"
     ARGS="$ARGS --nat-info ${INTERNAL_IP}:${EXTERNAL_IP}"
-    ARGS="$ARGS -M $WORKERS -S $SECRET --http-stats"
+    ARGS="$ARGS -M $WORKERS --http-stats"
     [[ -n "${TAG:-}" ]] && ARGS="$ARGS -P $TAG"
 
     /usr/local/bin/mtproto-proxy $ARGS &
@@ -104,9 +130,10 @@ start_mtproxy() {
 
 log "Starting MTProxy"
 log "Ports: $PORTS"
+log "Secrets: $SECRET_COUNT"
 log "Workers: $WORKERS"
 
-print_connection_link
+print_connection_links
 
 log "Starting MTProxy main control loop (update interval: $CONFIG_UPDATE_INTERVAL sec)"
 
