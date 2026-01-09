@@ -8,6 +8,14 @@ PROXY_CONFIG="$DATA_DIR/proxy-multi.conf"
 SECRET_FILE="$DATA_DIR/secret"
 CONFIG_UPDATE_INTERVAL="${CONFIG_UPDATE_INTERVAL:-604800}"  # default 7 days
 MTPROXY_PID=""
+SOCAT_PID=""
+STATS_PORT_PUBLIC="${STATS_PORT:-8888}"
+
+if (( STATS_PORT_PUBLIC <= 1024 )); then
+    STATS_PORT_INTERNAL=$((STATS_PORT_PUBLIC + 1))
+else
+    STATS_PORT_INTERNAL=$((STATS_PORT_PUBLIC - 1))
+fi
 
 log() {
     echo "[mtproxy] $(date '+%Y-%m-%d %H:%M:%S') $*"
@@ -31,8 +39,10 @@ get_external_ip() {
 
 cleanup() {
     log "Shutting down..."
-    kill -TERM "$MTPROXY_PID" 2>/dev/null || true
+    [[ -n "${MTPROXY_PID:-}" ]] && kill -TERM "$MTPROXY_PID" 2>/dev/null || true
+    [[ -n "${SOCAT_PID:-}" ]] && kill -TERM "$SOCAT_PID" 2>/dev/null || true
     wait "$MTPROXY_PID" 2>/dev/null || true
+    wait "$SOCAT_PID" 2>/dev/null || true
     exit 0
 }
 
@@ -77,7 +87,7 @@ EXTERNAL_IP=${EXTERNAL_IP:-$INTERNAL_IP}
 WORKERS=${WORKERS:-$(nproc)}
 (( WORKERS > 16 )) && WORKERS=16
 
-# Ports setup:  PORTS takes priority, fallback to PORT, default to 443
+# Ports setup: PORTS takes priority, fallback to PORT, default to 443
 PORTS="${PORTS:-${PORT:-443}}"
 PORTS_LIST="${PORTS//,/ }"
 
@@ -105,8 +115,17 @@ print_connection_links() {
     echo ""
 }
 
+start_stats_proxy() {
+    # MTProxy listens on localhost only, socat exposes it to all interfaces
+    if [[ "${STATS_EXPOSE:-true}" == "true" ]]; then
+        socat TCP-LISTEN:${STATS_PORT_PUBLIC},bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:${STATS_PORT_INTERNAL} &
+        SOCAT_PID=$! 
+        log "Stats proxy started:  0.0.0.0:${STATS_PORT_PUBLIC} -> 127.0.0.1:${STATS_PORT_INTERNAL} (PID $SOCAT_PID)"
+    fi
+}
+
 start_mtproxy() {
-    ARGS="-u root -p ${STATS_PORT:-8888}"
+    ARGS="-u root -p ${STATS_PORT_INTERNAL}"
     
     # Add all ports with -H flag
     for port in $PORTS_LIST; do
@@ -135,7 +154,10 @@ log "Workers: $WORKERS"
 
 print_connection_links
 
-log "Starting MTProxy main control loop (update interval: $CONFIG_UPDATE_INTERVAL sec)"
+# Start stats proxy once
+start_stats_proxy
+
+log "Starting MTProxy main control loop (update interval:  $CONFIG_UPDATE_INTERVAL sec)"
 
 while true; do
     # 1. Update config
