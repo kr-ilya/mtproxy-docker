@@ -5,7 +5,7 @@ services:
       args:
         MTPROTO_REPO_URL: ${MTPROTO_REPO_URL:-https://github.com/TelegramMessenger/MTProxy}
         MTPROTO_COMMIT: ${MTPROTO_COMMIT:-cafc338}
-    image: mtproxy:latest
+    image: imilya/mtproxy:latest
     container_name: mtproxy
     restart: unless-stopped
     ports:

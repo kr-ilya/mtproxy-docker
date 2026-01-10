@@ -7,6 +7,7 @@ PROXY_SECRET="$DATA_DIR/proxy-secret"
 PROXY_CONFIG="$DATA_DIR/proxy-multi.conf"
 SECRET_FILE="$DATA_DIR/secret"
 CONFIG_UPDATE_INTERVAL="${CONFIG_UPDATE_INTERVAL:-604800}"  # default 7 days
+SLEEP_PID=""
 MTPROXY_PID=""
 SOCAT_PID=""
 STATS_PORT_PUBLIC="${STATS_PORT:-8888}"
@@ -39,6 +40,7 @@ get_external_ip() {
 
 cleanup() {
     log "Shutting down..."
+    [[ -n "${SLEEP_PID:-}" ]] && kill "$SLEEP_PID" 2>/dev/null || true
     [[ -n "${MTPROXY_PID:-}" ]] && kill -TERM "$MTPROXY_PID" 2>/dev/null || true
     [[ -n "${SOCAT_PID:-}" ]] && kill -TERM "$SOCAT_PID" 2>/dev/null || true
     wait "$MTPROXY_PID" 2>/dev/null || true
@@ -152,7 +154,7 @@ log "Workers: $WORKERS"
 
 print_connection_links
 
-# Start stats proxy once
+# Start stats proxy
 start_stats_proxy
 
 log "Starting MTProxy main control loop (update interval:  $CONFIG_UPDATE_INTERVAL sec)"
@@ -184,5 +186,7 @@ while true; do
     start_mtproxy
 
     # 4. Sleep until next update
-    sleep "$CONFIG_UPDATE_INTERVAL"
+    sleep "$CONFIG_UPDATE_INTERVAL" &
+    SLEEP_PID=$!
+    wait "$SLEEP_PID"
 done
