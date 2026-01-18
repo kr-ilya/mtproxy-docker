@@ -152,41 +152,44 @@ log "Ports: $PORTS"
 log "Secrets: $SECRET_COUNT"
 log "Workers: $WORKERS"
 
+log "Fetching Telegram config"
+if /usr/local/bin/update-config.sh; then
+    log "Initial config fetched successfully"
+else
+    log "Initial config fetch failed"
+    exit 1
+fi
+
+start_mtproxy
+start_stats_proxy
 print_connection_links
 
-# Start stats proxy
-start_stats_proxy
+if [[ "$CONFIG_UPDATE_INTERVAL" -gt 0 ]]; then
+    log "Starting periodic config update loop (interval: $CONFIG_UPDATE_INTERVAL sec)"
+    while true; do
+        sleep "$CONFIG_UPDATE_INTERVAL" &
+        SLEEP_PID=$!
+        wait "$SLEEP_PID"
 
-log "Starting MTProxy main control loop (update interval:  $CONFIG_UPDATE_INTERVAL sec)"
-
-while true; do
-    # 1. Update config
-    if [[ "$CONFIG_UPDATE_INTERVAL" -gt 0 ]]; then
         log "Updating Telegram config..."
         if /usr/local/bin/update-config.sh; then
             log "Config updated"
+
+            if [[ -n "${MTPROXY_PID:-}" ]]; then
+                log "Stopping MTProxy (PID $MTPROXY_PID)..."
+                kill -TERM "$MTPROXY_PID" 2>/dev/null || true
+                pkill -P "$MTPROXY_PID" 2>/dev/null || true
+                wait "$MTPROXY_PID" 2>/dev/null || true
+                MTPROXY_PID=""
+            fi
+            start_mtproxy
         else
             log "Config update failed (keeping old config)"
         fi
-    fi
-
-    # 2. Stop old MTProxy if running
+    done
+else
+    log "Config update disabled"
     if [[ -n "${MTPROXY_PID:-}" ]]; then
-        log "Stopping MTProxy (PID $MTPROXY_PID)..."
-        kill -TERM "$MTPROXY_PID" 2>/dev/null || true
-
-        # на всякий случай — воркеры
-        pkill -P "$MTPROXY_PID" 2>/dev/null || true
-
-        wait "$MTPROXY_PID" 2>/dev/null || true
-        MTPROXY_PID=""
+        wait "$MTPROXY_PID"
     fi
-
-    # 3. Start MTProxy
-    start_mtproxy
-
-    # 4. Sleep until next update
-    sleep "$CONFIG_UPDATE_INTERVAL" &
-    SLEEP_PID=$!
-    wait "$SLEEP_PID"
-done
+fi

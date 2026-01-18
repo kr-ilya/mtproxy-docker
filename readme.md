@@ -109,6 +109,45 @@ make logs
 
 ---
 
+## Potential issues with official MTProxy and PID limits
+
+**Important note:** the official MTProxy binary currently does **not support process IDs (PIDs) larger than 65535**.  
+
+In long-running containers or on systems where many processes are started, PIDs can grow beyond this limit. When that happens, MTProxy may **crash immediately on startup** with an error like:
+
+```
+mtproto-proxy: common/pid.c:42: init_common_PID: Assertion `!(p & 0xffff0000)' failed
+```
+
+
+### Optional workaround
+
+You can limit the maximum PID the kernel assigns to new processes, which prevents this crash. This is **not required** for most users and may not be suitable in all environments. Run:
+
+```bash
+echo "kernel.pid_max = 65535" | sudo tee /etc/sysctl.d/99-mtproxy.conf
+sudo sysctl --system
+```
+
+### Effects and limitations:
+
+* For most ordinary users, this change does not cause any noticeable impact on system operation or performance.
+* New processes will never get PID above 65535, which prevents MTProxy crashes.
+* Systems with many concurrent processes (tens of thousands) may experience faster PID reuse.
+* You do not have to run this command if your container restarts often or your system does not generate very large PIDs — MTProxy will usually work fine.
+
+
+## Alternative approaches to handle PID / config updates
+
+If MTProxy crashes due to large PIDs, you can consider:
+
+1. **Disable automatic config updates**  
+   Set `CONFIG_UPDATE_INTERVAL=0` — MTProxy will run continuously without restarting.  
+
+2. **Use container restart to refresh config**  
+   Combine the above with periodic container restart (via Docker restart policy or host cron) to reset PID counters and update config.
+
+
 ## License / upstream
 
 This repository packages and runs the official MTProxy binary built from upstream sources.
