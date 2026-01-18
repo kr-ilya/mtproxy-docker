@@ -101,6 +101,15 @@ make logs
 
 ---
 
+## Update
+
+```bash
+docker compose pull mtproxy
+docker compose up -d --force-recreate
+```
+
+---
+
 ## Security notes
 
 - **Keep your secrets private**.
