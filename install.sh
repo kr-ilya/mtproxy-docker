@@ -49,20 +49,26 @@ ok "Docker found"
 println ""
 
 # ── PID limit ─────────────────────────────────────────────────────────────────
-println "${BOLD}PID limit${NC}"
-println "MTProxy crashes if its PID exceeds 65535."
-println "Setting kernel.pid_max=65535 prevents this."
-read -rp "Apply PID limit? [Y/n]: " PID_LIMIT_INPUT
-case "${PID_LIMIT_INPUT,,}" in
-    n|no)
-        ok "PID limit skipped"
-        ;;
-    *)
-        echo "kernel.pid_max = 65535" | tee /etc/sysctl.d/99-mtproxy.conf > /dev/null
-        sysctl --system > /dev/null
-        ok "PID limit applied"
-        ;;
-esac
+CURRENT_PID_MAX=$(cat /proc/sys/kernel/pid_max)
+if (( CURRENT_PID_MAX <= 65535 )); then
+    ok "PID limit already set ($CURRENT_PID_MAX), skipping"
+else
+    println "${BOLD}PID limit${NC}"
+    println "MTProxy crashes if its PID exceeds 65535."
+    println "Setting kernel.pid_max=65535 prevents this."
+    read -rp "Apply PID limit? [Y/n]: " PID_LIMIT_INPUT
+    case "${PID_LIMIT_INPUT,,}" in
+        n|no)
+            ok "PID limit skipped"
+            ;;
+        *)
+            echo "kernel.pid_max = 65535" | tee /etc/sysctl.d/99-mtproxy.conf > /dev/null
+            sysctl --system > /dev/null
+            ok "PID limit applied"
+            ;;
+    esac
+fi
+println ""
 
 # ── Port ──────────────────────────────────────────────────────────────────────
 println "${BOLD}Port${NC}"
