@@ -80,9 +80,15 @@ println ""
 println "${BOLD}Fake TLS${NC}"
 println "Disguises traffic as HTTPS to bypass deep packet inspection."
 println "Recommended if MTProxy is blocked in your region."
-read -rp "Enable Fake TLS? [y/N]: " FAKE_TLS_INPUT
+read -rp "Enable Fake TLS? [Y/n]: " FAKE_TLS_INPUT
 case "${FAKE_TLS_INPUT,,}" in
-    y|yes)
+    n|no)
+        FAKE_TLS=0
+        FAKE_TLS_DOMAIN="cloudflare.com"
+        SECRET=$(generate_plain_secret)
+        ok "Fake TLS: disabled"
+        ;;
+    *)
         FAKE_TLS=1
         println ""
         println "${BOLD}Fake TLS domain${NC}"
@@ -92,12 +98,7 @@ case "${FAKE_TLS_INPUT,,}" in
         SECRET=$(generate_fake_tls_secret "$FAKE_TLS_DOMAIN")
         ok "Fake TLS: enabled (domain: $FAKE_TLS_DOMAIN)"
         ;;
-    *)
-        FAKE_TLS=0
-        FAKE_TLS_DOMAIN="cloudflare.com"
-        SECRET=$(generate_plain_secret)
-        ok "Fake TLS: disabled"
-        ;;
+        
 esac
 println ""
 
@@ -110,7 +111,7 @@ for svc in ifconfig.me api.ipify.org icanhazip.com; do
     EXTERNAL_IP=""
 done
 if [[ -z "$EXTERNAL_IP" ]]; then
-    die "Could not detect external IP. Set EXTERNAL_IP manually and re-run."
+    die "Could not detect external IP (server public IP). Set EXTERNAL_IP manually and re-run."
 fi
 ok "External IP: $EXTERNAL_IP"
 println ""

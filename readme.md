@@ -14,8 +14,8 @@ Official MTProxy project: https://github.com/TelegramMessenger/MTProxy
 ## Quick install
 ```bash
 curl -O https://raw.githubusercontent.com/kr-ilya/mtproxy-docker/master/install.sh
-chmod +x install.sh
-./install.sh
+sudo chmod +x install.sh
+sudo ./install.sh
 ```
 ---
 
@@ -73,13 +73,13 @@ Edit `.env` as needed (for example set `PORT`, `SECRET` or `SECRETS`, `TAG`).
 ### 3) Run
 
 ```bash
-docker compose up -d
+sudo docker compose up -d
 ```
 
 ### 3) View logs / get connection links
 
 ```bash
-docker compose logs -f
+sudo docker compose logs -f
 ```
 
 On startup, the container prints connection links like:
@@ -95,8 +95,8 @@ Build locally
 If you want to build the MTProxy binary yourself (for example to pin a different commit upstream sources), use:
 
 ```bash
-docker compose build --no-cache
-docker compose up -d
+sudo docker compose build --no-cache
+sudo docker compose up -d
 ```
 
 If you prefer Makefile helpers:
@@ -112,8 +112,8 @@ make logs
 ## Update
 
 ```bash
-docker compose pull mtproxy
-docker compose up -d --force-recreate
+sudo docker compose pull mtproxy
+sudo docker compose up -d --force-recreate
 ```
 
 ---
