@@ -11,6 +11,14 @@ Official MTProxy project: https://github.com/TelegramMessenger/MTProxy
 
 ---
 
+## Quick install
+```bash
+curl -O https://raw.githubusercontent.com/kr-ilya/mtproxy-docker/master/install.sh
+chmod +x mtproxy-install.sh
+./mtproxy-install.sh
+```
+---
+
 ## Environment variables
 
 You can set these in `.env` (recommended) or directly in your shell.
@@ -45,7 +53,7 @@ A prebuilt image is available on [Docker Hub](https://hub.docker.com/r/imilya/mt
 
 ---
 
-## Quick start
+## Step by step
 
 ### 1) Clone the repository
 
