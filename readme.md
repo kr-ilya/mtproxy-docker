@@ -5,6 +5,7 @@ This repository contains a minimal Docker image + Docker Compose setup for runni
 - **HTTP stats** endpoint
 - **Multi-secret** support
 - **Multi-port** support
+- **Fake-tls** support
 
 
 Official MTProxy project: https://github.com/TelegramMessenger/MTProxy
@@ -27,6 +28,8 @@ You can set these in `.env` (recommended) or directly in your shell.
 
 | Variable | Default | Description | Example |
 |---|---:|---|---|
+| `FAKE_TLS` | `0` | Fake TLS mode. | `FAKE_TLS=1` |
+| `FAKE_TLS_DOMAIN` | `cloudflare.com` | Fake TLS domain. | `FAKE_TLS_DOMAIN=cloudflare.com` |
 | `PORT` | `443` | Single public port (used if `PORTS` is empty). | `PORT=443` |
 | `PORTS` | *(empty)* | Multiple public ports (**comma-separated**). Overrides `PORT`. | `PORTS=443,8443,9443` |
 | `SECRET` | *(empty)* | Single secret (**32 hex chars**). If empty and `/data/secret` does not exist, it will be auto-generated and saved to `/data/secret`. | `SECRET=0123456789abcdef0123456789abcdef` |
