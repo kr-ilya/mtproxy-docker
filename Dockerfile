@@ -48,7 +48,9 @@ ENV PORT=443 \
     SECRET="" \
     TAG="" \
     EXTERNAL_IP="" \
-    EXTRA_ARGS=""
+    EXTRA_ARGS="" \
+    FAKE_TLS="1" \
+    FAKE_TLS_DOMAIN="cloudflare.com"
 
 EXPOSE 443 8888
 VOLUME ["/data"]
