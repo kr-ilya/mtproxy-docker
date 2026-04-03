@@ -24,18 +24,11 @@ generate_plain_secret() {
 
 generate_fake_tls_secret() {
     local domain="$1"
+    local random_key
+    random_key=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
     local domain_hex
-    domain_hex=$(echo -n "$domain" | od -An -tx1 | tr -d ' \n')
-    local max_len=30
-    local domain_len=${#domain_hex}
-    if (( domain_len >= max_len )); then
-        echo "ee${domain_hex:0:$max_len}"
-    else
-        local needed=$(( max_len - domain_len ))
-        local random_hex
-        random_hex=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-"$needed")
-        echo "ee${domain_hex}${random_hex}"
-    fi
+    domain_hex=$(printf '%s' "$domain" | od -An -tx1 | tr -d ' \n')
+    echo "ee${random_key}${domain_hex}"
 }
 
 println ""
@@ -51,7 +44,7 @@ println ""
 # ── PID limit ─────────────────────────────────────────────────────────────────
 CURRENT_PID_MAX=$(cat /proc/sys/kernel/pid_max)
 if (( CURRENT_PID_MAX <= 65535 )); then
-    ok "PID limit already set ($CURRENT_PID_MAX), skipping"
+    ok "PID limit is already within safe range ($CURRENT_PID_MAX), skipping"
 else
     println "${BOLD}PID limit${NC}"
     println "MTProxy crashes if its PID exceeds 65535."

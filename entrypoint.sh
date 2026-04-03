@@ -27,32 +27,19 @@ generate_secret() {
     head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'
 }
 
-# Generates a Fake TLS secret: ee<domain_hex><random_padding> = 32 hex chars total after prefix
-# Format: "ee" + 30 hex chars, where the first chars encode the domain
 generate_fake_tls_secret() {
     local domain="${1}"
+    local random_key
+    random_key=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
     local domain_hex
-    domain_hex=$(echo -n "$domain" | od -An -tx1 | tr -d ' \n')
-
-    # Total payload must be 30 hex chars (15 bytes), domain_hex may be shorter
-    local max_len=30
-    local domain_len=${#domain_hex}
-
-    if (( domain_len >= max_len )); then
-        # Domain too long — truncate to 30 chars
-        echo "ee${domain_hex:0:$max_len}"
-    else
-        local needed=$(( max_len - domain_len ))
-        local random_hex
-        random_hex=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-"$needed")
-        echo "ee${domain_hex}${random_hex}"
-    fi
+    domain_hex=$(printf '%s' "$domain" | od -An -tx1 | tr -d ' \n')
+    echo "ee${random_key}${domain_hex}"
 }
 
 validate_secret() {
-    # Plain secret: 32 hex chars
-    # Fake TLS secret: "ee" + 30 hex chars (32 total) — same pattern
-    [[ "$1" =~ ^[a-fA-F0-9]{32}$ ]] || [[ "$1" =~ ^ee[a-fA-F0-9]{30}$ ]]
+    # Plain secret:    32 hex chars
+    # Fake TLS secret: "ee" + 32 hex (key) + hex(domain)
+    [[ "$1" =~ ^[a-fA-F0-9]{32}$ ]] || [[ "$1" =~ ^ee[a-fA-F0-9]{34,}$ ]]
 }
 
 get_external_ip() {
@@ -110,7 +97,7 @@ fi
 if [[ "$FAKE_TLS" == "1" ]]; then
     NEW_SECRETS_LIST=""
     for secret in $SECRETS_LIST; do
-        if [[ "$secret" =~ ^ee[a-fA-F0-9]{30}$ ]]; then
+        if [[ "$secret" =~ ^ee[a-fA-F0-9]{34,}$ ]]; then
             # Already a valid Fake TLS secret — keep it
             NEW_SECRETS_LIST="$NEW_SECRETS_LIST $secret"
         else
