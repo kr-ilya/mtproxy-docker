@@ -5,7 +5,6 @@ set -Eeuo pipefail
 DATA_DIR="/data"
 PROXY_SECRET="$DATA_DIR/proxy-secret"
 PROXY_CONFIG="$DATA_DIR/proxy-multi.conf"
-SECRET_FILE="$DATA_DIR/secret"
 CONFIG_UPDATE_INTERVAL="${CONFIG_UPDATE_INTERVAL:-604800}"  # default 7 days
 SLEEP_PID=""
 MTPROXY_PID=""
@@ -73,13 +72,11 @@ FAKE_TLS="${FAKE_TLS:-0}"
 FAKE_TLS_DOMAIN="${FAKE_TLS_DOMAIN:-cloudflare.com}"
 
 # ── Secrets setup ─────────────────────────────────────────────────────────────
-# Priority: SECRETS env > SECRET env > file > auto-generate
+# Priority: SECRETS env > SECRET env > auto-generate
 if [[ -n "${SECRETS:-}" ]]; then
     SECRETS_LIST="${SECRETS//,/ }"
 elif [[ -n "${SECRET:-}" ]]; then
     SECRETS_LIST="$SECRET"
-elif [[ -f "$SECRET_FILE" ]]; then
-    SECRETS_LIST=$(tr ',\n' ' ' < "$SECRET_FILE" | xargs)
 else
     if [[ "$FAKE_TLS" == "1" ]]; then
         NEW_SECRET=$(generate_fake_tls_secret "$FAKE_TLS_DOMAIN")
@@ -88,8 +85,6 @@ else
         NEW_SECRET=$(generate_secret)
         log "Generated new plain secret"
     fi
-    echo "$NEW_SECRET" > "$SECRET_FILE"
-    chmod 600 "$SECRET_FILE"
     SECRETS_LIST="$NEW_SECRET"
 fi
 
