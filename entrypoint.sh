@@ -168,17 +168,44 @@ start_stats_proxy() {
     log "Stats proxy started: 0.0.0.0:${STATS_PORT_PUBLIC} -> 127.0.0.1:${STATS_PORT_INTERNAL} (PID $SOCAT_PID)"
 }
 
+# ── Helper: extract 32-hex key from any secret format ────────────────────────
+extract_secret_key() {
+    local secret="$1"
+    
+    # Case 1: dd + 32 hex (plain secret for client link)
+    # Regex: ^dd + exactly 32 hex + end of string
+    if [[ "$secret" =~ ^dd([a-fA-F0-9]{32})$ ]]; then
+        echo "${BASH_REMATCH[1]}"
+        
+    # Case 2: ee + 32 hex + domain_hex (Fake TLS secret for client link)
+    # Regex: ^ee + exactly 32 hex + (optional more hex for domain)
+    elif [[ "$secret" =~ ^ee([a-fA-F0-9]{32}) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        
+    # Case 3: plain 32 hex (already in server format)
+    elif [[ "$secret" =~ ^[a-fA-F0-9]{32}$ ]]; then
+        echo "$secret"
+        
+    else
+        # Invalid format
+        return 1
+    fi
+}
+
 start_mtproxy() {
     ARGS="-u root -p ${STATS_PORT_INTERNAL}"
 
-    # Add all ports with -H flag
     for port in $PORTS_LIST; do
         ARGS="$ARGS -H $port"
     done
 
-    # Add all secrets with -S flag
     for secret in $SECRETS_LIST; do
-        ARGS="$ARGS -S $secret"
+        # Извлекаем только 32-символьный ключ для сервера
+        SECRET_KEY=$(extract_secret_key "$secret") || {
+            log "ERROR: Cannot parse secret: $secret"
+            exit 1
+        }
+        ARGS="$ARGS -S $SECRET_KEY"
     done
 
     ARGS="$ARGS --aes-pwd $PROXY_SECRET $PROXY_CONFIG"
