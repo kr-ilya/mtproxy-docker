@@ -203,6 +203,10 @@ start_mtproxy() {
         ARGS="$ARGS -S $SECRET_KEY"
     done
 
+    if [[ "$FAKE_TLS" == "1" ]]; then
+        ARGS="$ARGS -D $FAKE_TLS_DOMAIN"
+    fi
+
     ARGS="$ARGS --aes-pwd $PROXY_SECRET $PROXY_CONFIG"
     ARGS="$ARGS --nat-info ${INTERNAL_IP}:${EXTERNAL_IP}"
     ARGS="$ARGS -M $WORKERS --http-stats"
