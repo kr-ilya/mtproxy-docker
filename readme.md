@@ -14,9 +14,9 @@ Official MTProxy project: https://github.com/TelegramMessenger/MTProxy
 
 ## Quick install
 ```bash
-curl -O https://raw.githubusercontent.com/kr-ilya/mtproxy-docker/main/install.sh
-sudo chmod +x install.sh
-sudo ./install.sh
+curl -O https://raw.githubusercontent.com/kr-ilya/mtproxy-installer/main/install.sh
+chmod +x install.sh
+./install.sh
 ```
 ---
 
